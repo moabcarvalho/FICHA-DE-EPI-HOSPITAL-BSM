@@ -1,6 +1,6 @@
 /**
  * Módulo para captura de assinatura digital
- * Implementa funcionalidade de desenho em canvas com suporte a toque
+ * Implementa funcionalidade de desenho em canvas com suporte a toque e modo caneta
  */
 class SignatureCapture {
     constructor(canvasId, clearButtonId) {
@@ -10,6 +10,7 @@ class SignatureCapture {
         this.isDrawing = false;
         this.lastX = 0;
         this.lastY = 0;
+        this.penMode = false; // Novo: controle do modo caneta
         
         // Configuração inicial do canvas
         this.setupCanvas();
@@ -19,6 +20,9 @@ class SignatureCapture {
         
         // Configuração do botão de limpar
         this.setupClearButton();
+        
+        // Configuração do botão de caneta
+        this.setupPenButton();
     }
     
     setupCanvas() {
@@ -30,7 +34,7 @@ class SignatureCapture {
         this.ctx.lineJoin = 'round';
         this.ctx.lineCap = 'round';
         this.ctx.lineWidth = 3;
-        this.ctx.strokeStyle = '#000';
+        this.ctx.strokeStyle = '#000'; // Cor padrão inicial
         
         // Limpar o canvas
         this.clearCanvas();
@@ -52,6 +56,43 @@ class SignatureCapture {
     setupClearButton() {
         if (this.clearButton) {
             this.clearButton.addEventListener('click', this.clearCanvas.bind(this));
+        }
+    }
+    
+    setupPenButton() {
+        // Criar botão de caneta
+        const penButton = document.createElement('button');
+        penButton.type = 'button';
+        penButton.id = 'penButton';
+        penButton.className = 'btn btn-outline-primary ms-2';
+        penButton.innerHTML = '<i class="bi bi-pen"></i>'; // Ícone de caneta do Bootstrap Icons
+        penButton.title = 'Modo Caneta';
+        
+        // Adicionar o botão após o botão de limpar
+        if (this.clearButton) {
+            this.clearButton.insertAdjacentElement('afterend', penButton);
+        }
+        
+        // Adicionar evento de clique
+        penButton.addEventListener('click', this.togglePenMode.bind(this));
+        
+        // Salvar referência ao botão
+        this.penButton = penButton;
+    }
+    
+    togglePenMode() {
+        this.penMode = !this.penMode;
+        
+        if (this.penMode) {
+            // Ativar modo caneta (azul escuro tipo BIC)
+            this.ctx.strokeStyle = '#0047AB'; // Azul escuro semelhante à caneta BIC
+            this.penButton.classList.remove('btn-outline-primary');
+            this.penButton.classList.add('btn-primary');
+        } else {
+            // Voltar para o modo normal (preto)
+            this.ctx.strokeStyle = '#000';
+            this.penButton.classList.remove('btn-primary');
+            this.penButton.classList.add('btn-outline-primary');
         }
     }
     
@@ -134,7 +175,13 @@ class SignatureCapture {
         this.ctx.lineJoin = 'round';
         this.ctx.lineCap = 'round';
         this.ctx.lineWidth = 3;
-        this.ctx.strokeStyle = '#000';
+        
+        // Manter a cor atual baseada no modo
+        if (this.penMode) {
+            this.ctx.strokeStyle = '#0047AB'; // Azul escuro
+        } else {
+            this.ctx.strokeStyle = '#000'; // Preto
+        }
         
         // Restaurar a assinatura
         const img = new Image();
