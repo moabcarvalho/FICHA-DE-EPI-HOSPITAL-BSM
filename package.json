@@ -1,0 +1,12 @@
+{
+  "name": "epi-signature-app",
+  "version": "1.0.0",
+  "description": "Sistema de Ficha de EPI para Hospital Bom Samaritano Maringá",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "vercel": "^28.0.0"
+  }
+}

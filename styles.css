@@ -1,0 +1,106 @@
+/* Estilos para o site de Ficha de EPI */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+.container {
+    max-width: 900px;
+}
+
+.hospital-title {
+    color: #0056b3;
+    font-weight: 700;
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.epi-title {
+    color: #343a40;
+    font-weight: 600;
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-title {
+    color: #0056b3;
+    font-size: 1.3rem;
+    font-weight: 600;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.signature-container {
+    border: 2px dashed #ced4da;
+    border-radius: 5px;
+    background-color: #fff;
+    margin-bottom: 10px;
+    touch-action: none; /* Importante para evitar gestos de toque padrão */
+}
+
+#signatureCanvas {
+    width: 100%;
+    height: 200px;
+    cursor: crosshair;
+}
+
+.signature-instruction {
+    color: #6c757d;
+    font-style: italic;
+    margin-bottom: 1rem;
+}
+
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: none;
+}
+
+/* Estilos responsivos */
+@media (max-width: 768px) {
+    .hospital-title {
+        font-size: 1.5rem;
+    }
+    
+    .epi-title {
+        font-size: 1.3rem;
+    }
+    
+    .section-title {
+        font-size: 1.2rem;
+    }
+    
+    #signatureCanvas {
+        height: 150px;
+    }
+}
+
+/* Estilos para impressão */
+@media print {
+    .signature-actions, 
+    .d-md-flex {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none;
+        border: 1px solid #dee2e6;
+    }
+    
+    .signature-container {
+        border: 1px solid #000;
+    }
+    
+    body {
+        font-size: 12pt;
+    }
+    
+    .hospital-title {
+        font-size: 16pt;
+    }
+    
+    .epi-title {
+        font-size: 14pt;
+    }
+}

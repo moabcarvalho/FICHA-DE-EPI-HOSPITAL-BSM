@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FICHA DE EPI HOSPITAL BOM SAMARITANO MARINGÁ</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header text-center">
+                <h1 class="mb-0">HOSPITAL BOM SAMARITANO MARINGÁ</h1>
+                <h2>FICHA DE ENTREGA DE EPI</h2>
+            </div>
+            
+            <!-- Navegação -->
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="nova-ficha-tab" data-bs-toggle="tab" data-bs-target="#nova-ficha" type="button" role="tab" aria-controls="nova-ficha" aria-selected="true">Nova Ficha</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="consultar-tab" data-bs-toggle="tab" data-bs-target="#consultar" type="button" role="tab" aria-controls="consultar" aria-selected="false">Consultar Registros</button>
+                </li>
+            </ul>
+            
+            <div class="tab-content" id="myTabContent">
+                <!-- Aba Nova Ficha -->
+                <div class="tab-pane fade show active" id="nova-ficha" role="tabpanel" aria-labelledby="nova-ficha-tab">
+                    <div class="card-body">
+                        <form id="epiForm">
+                            <h3 class="section-title">Dados do Colaborador</h3>
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <label for="nomeCompleto" class="form-label">Nome Completo</label>
+                                    <input type="text" class="form-control" id="nomeCompleto" required>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="cpf" class="form-label">CPF</label>
+                                    <input type="text" class="form-control" id="cpf" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="dataAdmissao" class="form-label">Data de Admissão</label>
+                                    <input type="date" class="form-control" id="dataAdmissao" required>
+                                </div>
+                            </div>
+                            
+                            <h3 class="section-title">Dados do EPI</h3>
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <label for="nomeEPI" class="form-label">Nome do EPI</label>
+                                    <input type="text" class="form-control" id="nomeEPI" required>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="ca" class="form-label">CA (Certificado de Aprovação)</label>
+                                    <input type="text" class="form-control" id="ca" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="dataEntrega" class="form-label">Data de Entrega</label>
+                                    <input type="date" class="form-control" id="dataEntrega" required>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <label for="observacoes" class="form-label">Observações</label>
+                                    <textarea class="form-control" id="observacoes" rows="3"></textarea>
+                                </div>
+                            </div>
+                            
+                            <h3 class="section-title">Assinatura Digital</h3>
+                            <p>Assine no campo abaixo utilizando o dedo ou uma caneta touch:</p>
+                            <div class="signature-container mb-3">
+                                <canvas id="signatureCanvas"></canvas>
+                                <button type="button" class="btn btn-secondary mt-2" id="clearSignature">Limpar Assinatura</button>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between">
+                                <button type="button" class="btn btn-primary" id="saveButton">Salvar Registro</button>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-success" id="printButton">Imprimir</button>
+                                    <button type="button" class="btn btn-info" id="pdfButton">Gerar PDF</button>
+                                    <button type="button" class="btn btn-warning" id="emailButton">Enviar por Email</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Aba Consultar Registros -->
+                <div class="tab-pane fade" id="consultar" role="tabpanel" aria-labelledby="consultar-tab">
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-9">
+                                <input type="text" class="form-control" id="searchInput" placeholder="Buscar por nome ou CPF do colaborador">
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-primary w-100" id="searchButton">Buscar</button>
+                            </div>
+                        </div>
+                        
+                        <div id="searchResults">
+                            <h4 id="resultTitle" class="mb-3 d-none">Registros encontrados</h4>
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="resultsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Colaborador</th>
+                                            <th>EPI</th>
+                                            <th>CA</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="resultsBody">
+                                        <!-- Resultados serão inseridos aqui -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="noResults" class="alert alert-info d-none">
+                                Nenhum registro encontrado para este colaborador.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Email -->
+    <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="emailModalLabel">Enviar por Email</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="emailDestinatario" class="form-label">Email do Destinatário</label>
+                        <input type="email" class="form-control" id="emailDestinatario" required>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="salvarEmail">
+                        <label class="form-check-label" for="salvarEmail">
+                            Salvar este email para uso futuro
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="sendEmailButton">Enviar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Visualização de Registro -->
+    <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewModalLabel">Detalhes do Registro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="viewModalBody">
+                    <!-- Conteúdo do registro será inserido aqui -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-success" id="viewPrintButton">Imprimir</button>
+                    <button type="button" class="btn btn-info" id="viewPdfButton">Gerar PDF</button>
+                    <button type="button" class="btn btn-warning" id="viewEmailButton">Enviar por Email</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="js/signature.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
