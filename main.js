@@ -25,10 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Botões de ação
     const saveButton = document.getElementById('saveButton');
-    const printButton = document.getElementById('printButton');
     const pdfButton = document.getElementById('pdfButton');
-    const emailButton = document.getElementById('emailButton');
-    const sendEmailButton = document.getElementById('sendEmailButton');
     
     // Elementos de busca
     const searchInput = document.getElementById('searchInput');
@@ -39,26 +36,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const noResults = document.getElementById('noResults');
     
     // Botões de visualização
-    const viewPrintButton = document.getElementById('viewPrintButton');
     const viewPdfButton = document.getElementById('viewPdfButton');
-    const viewEmailButton = document.getElementById('viewEmailButton');
     
     // Modais
-    const emailModal = new bootstrap.Modal(document.getElementById('emailModal'));
     const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
-    const emailDestinatarioInput = document.getElementById('emailDestinatario');
-    const salvarEmailCheckbox = document.getElementById('salvarEmail');
     
     // Configurar data de entrega com a data atual
     const today = new Date();
     const formattedDate = today.toISOString().split('T')[0];
     dataEntregaInput.value = formattedDate;
-    
-    // Carregar email salvo (se existir)
-    const savedEmail = localStorage.getItem('savedEmail');
-    if (savedEmail) {
-        emailDestinatarioInput.value = savedEmail;
-    }
     
     // Função para formatar CPF
     cpfInput.addEventListener('input', function(e) {
@@ -255,15 +241,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
     
-    // Imprimir documento
-    printButton.addEventListener('click', function() {
-        if (!validarFormulario()) {
-            alert('Por favor, preencha todos os campos obrigatórios e assine o documento antes de imprimir.');
-            return;
-        }
-        window.print();
-    });
-    
     // Gerar PDF
     pdfButton.addEventListener('click', function() {
         if (!validarFormulario()) {
@@ -271,80 +248,12 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const { jsPDF } = window.jspdf;
-        
-        html2canvas(document.querySelector('.card-body')).then(canvas => {
+        html2canvas(document.querySelector('.signature-container')).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgProps = pdf.getImageProperties(imgData);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`ficha_epi_${cpfInput.value.replace(/\D/g, '')}_${dataEntregaInput.value}.pdf`);
-        });
-    });
-    
-    // Abrir modal de email
-    emailButton.addEventListener('click', function() {
-        if (!validarFormulario()) {
-            alert('Por favor, preencha todos os campos obrigatórios e assine o documento antes de enviar por email.');
-            return;
-        }
-        emailModal.show();
-    });
-    
-    // Enviar email
-    sendEmailButton.addEventListener('click', function() {
-        const email = emailDestinatarioInput.value;
-        if (!email) {
-            alert('Por favor, informe um email válido.');
-            return;
-        }
-        
-        // Salvar email se a opção estiver marcada
-        if (salvarEmailCheckbox.checked) {
-            localStorage.setItem('savedEmail', email);
-        }
-        
-        // Gerar PDF e enviar por email
-        const { jsPDF } = window.jspdf;
-        
-        html2canvas(document.querySelector('.card-body')).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgProps = pdf.getImageProperties(imgData);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            
-            const pdfBlob = pdf.output('blob');
-            const formData = new FormData();
-            formData.append('email', email);
-            formData.append('nome', nomeCompletoInput.value);
-            formData.append('data', dataEntregaInput.value);
-            formData.append('pdf', pdfBlob, `ficha_epi_${cpfInput.value.replace(/\D/g, '')}_${dataEntregaInput.value}.pdf`);
-            
-            // Enviar email com o PDF anexado
-            fetch(`${API_BASE_URL}/enviar-email`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Erro ao enviar email');
-                }
-                return response.json();
-            })
-            .then(() => {
-                alert('Email enviado com sucesso!');
-                emailModal.hide();
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro ao enviar o email. Por favor, tente novamente.');
-            });
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+            pdf.addImage(imgData, 'PNG', 10, 10);
+            pdf.save('assinatura.pdf');
         });
     });
     
@@ -410,12 +319,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                resultTitle.textContent = `Registros de ${data.colaborador.nome_completo}`;
                 resultTitle.classList.remove('d-none');
                 
-                // Buscar detalhes dos EPIs para cada registro
-                const epiPromises = data.registros.map(registro => {
-                    return fetch(`${API_BASE_URL}/epis/${registro.epi_id}`)
+                // Preencher tabela com os registros
+                data.registros.forEach(registro => {
+                    // Buscar detalhes do EPI
+                    fetch(`${API_BASE_URL}/epis/${registro.epi_id}`)
                         .then(response => {
                             if (!response.ok) {
                                 throw new Error('Erro ao buscar EPI');
@@ -423,313 +332,114 @@ document.addEventListener('DOMContentLoaded', function() {
                             return response.json();
                         })
                         .then(epi => {
-                            return { ...registro, epi };
+                            const row = document.createElement('tr');
+                            
+                            // Formatar data
+                            const dataEntrega = new Date(registro.data_entrega);
+                            const dataFormatada = dataEntrega.toLocaleDateString('pt-BR');
+                            
+                            row.innerHTML = `
+                                <td>${dataFormatada}</td>
+                                <td>${data.colaborador.nome_completo}</td>
+                                <td>${epi.nome}</td>
+                                <td>${epi.ca}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary view-btn" data-registro-id="${registro.id}">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </button>
+                                </td>
+                            `;
+                            
+                            // Adicionar evento para visualizar registro
+                            row.querySelector('.view-btn').addEventListener('click', function() {
+                                visualizarRegistro(registro, data.colaborador, epi);
+                            });
+                            
+                            resultsBody.appendChild(row);
+                        })
+                        .catch(error => {
+                            console.error('Erro:', error);
                         });
-                });
-                
-                return Promise.all(epiPromises).then(registrosCompletos => {
-                    return { colaborador: data.colaborador, registros: registrosCompletos };
-                });
-            })
-            .then(data => {
-                // Preencher tabela com os registros
-                data.registros.forEach(registro => {
-                    const row = document.createElement('tr');
-                    
-                    // Formatar data
-                    const dataEntrega = new Date(registro.data_entrega);
-                    const dataFormatada = dataEntrega.toLocaleDateString('pt-BR');
-                    
-                    row.innerHTML = `
-                        <td>${dataFormatada}</td>
-                        <td>${data.colaborador.nome_completo}</td>
-                        <td>${registro.epi.nome}</td>
-                        <td>${registro.epi.ca}</td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <button type="button" class="btn btn-primary view-btn" data-id="${registro.id}">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button type="button" class="btn btn-success print-btn" data-id="${registro.id}">
-                                    <i class="bi bi-printer"></i>
-                                </button>
-                                <button type="button" class="btn btn-info pdf-btn" data-id="${registro.id}">
-                                    <i class="bi bi-file-pdf"></i>
-                                </button>
-                                <button type="button" class="btn btn-warning email-btn" data-id="${registro.id}">
-                                    <i class="bi bi-envelope"></i>
-                                </button>
-                            </div>
-                        </td>
-                    `;
-                    
-                    resultsBody.appendChild(row);
-                });
-                
-                // Adicionar event listeners para os botões de ação
-                document.querySelectorAll('.view-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const registroId = this.getAttribute('data-id');
-                        visualizarRegistro(registroId);
-                    });
-                });
-                
-                document.querySelectorAll('.print-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const registroId = this.getAttribute('data-id');
-                        imprimirRegistro(registroId);
-                    });
-                });
-                
-                document.querySelectorAll('.pdf-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const registroId = this.getAttribute('data-id');
-                        gerarPDFRegistro(registroId);
-                    });
-                });
-                
-                document.querySelectorAll('.email-btn').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const registroId = this.getAttribute('data-id');
-                        enviarEmailRegistro(registroId);
-                    });
                 });
             })
             .catch(error => {
                 console.error('Erro:', error);
                 noResults.classList.remove('d-none');
+                noResults.textContent = `Erro: ${error.message}`;
             });
     });
     
     // Função para visualizar registro
-    function visualizarRegistro(registroId) {
-        fetch(`${API_BASE_URL}/registros/${registroId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Erro ao buscar registro');
-                }
-                return response.json();
-            })
-            .then(registro => {
-                // Buscar colaborador
-                return fetch(`${API_BASE_URL}/colaboradores/${registro.colaborador_id}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Erro ao buscar colaborador');
-                        }
-                        return response.json();
-                    })
-                    .then(colaborador => {
-                        // Buscar EPI
-                        return fetch(`${API_BASE_URL}/epis/${registro.epi_id}`)
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error('Erro ao buscar EPI');
-                                }
-                                return response.json();
-                            })
-                            .then(epi => {
-                                return { registro, colaborador, epi };
-                            });
-                    });
-            })
-            .then(data => {
-                // Formatar data
-                const dataEntrega = new Date(data.registro.data_entrega);
-                const dataFormatada = dataEntrega.toLocaleDateString('pt-BR');
-                
-                // Preencher modal com os dados do registro
-                const viewModalBody = document.getElementById('viewModalBody');
-                viewModalBody.innerHTML = `
-                    <div class="registro-detalhes">
-                        <h4 class="text-center mb-4">FICHA DE EPI HOSPITAL BOM SAMARITANO MARINGÁ</h4>
-                        
-                        <h5>Dados do Colaborador</h5>
-                        <div class="row mb-3">
-                            <div class="col-md-4"><strong>Nome:</strong></div>
-                            <div class="col-md-8">${data.colaborador.nome_completo}</div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-4"><strong>CPF:</strong></div>
-                            <div class="col-md-8">${data.colaborador.cpf}</div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-4"><strong>Data de Admissão:</strong></div>
-                            <div class="col-md-8">${data.colaborador.data_admissao}</div>
-                        </div>
-                        
-                        <h5 class="mt-4">Dados do EPI</h5>
-                        <div class="row mb-3">
-                            <div class="col-md-4"><strong>Nome do EPI:</strong></div>
-                            <div class="col-md-8">${data.epi.nome}</div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-4"><strong>CA:</strong></div>
-                            <div class="col-md-8">${data.epi.ca}</div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-4"><strong>Data de Entrega:</strong></div>
-                            <div class="col-md-8">${dataFormatada}</div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-4"><strong>Observações:</strong></div>
-                            <div class="col-md-8">${data.registro.observacoes || '-'}</div>
-                        </div>
-                        
-                        <h5 class="mt-4">Assinatura Digital</h5>
-                        <div class="text-center">
-                            <img src="${data.registro.assinatura_data}" alt="Assinatura" class="img-fluid signature-image">
-                        </div>
-                    </div>
-                `;
-                
-                // Armazenar dados para uso nas ações
-                viewModalBody.dataset.registroId = data.registro.id;
-                viewModalBody.dataset.colaboradorNome = data.colaborador.nome_completo;
-                viewModalBody.dataset.colaboradorCpf = data.colaborador.cpf;
-                viewModalBody.dataset.dataEntrega = dataFormatada;
-                
-                // Mostrar modal
-                viewModal.show();
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro ao visualizar o registro. Por favor, tente novamente.');
-            });
-    }
-    
-    // Função para imprimir registro
-    function imprimirRegistro(registroId) {
-        visualizarRegistro(registroId);
-        
-        // Adicionar listener para quando o modal estiver completamente visível
-        document.getElementById('viewModal').addEventListener('shown.bs.modal', function() {
-            setTimeout(() => {
-                window.print();
-            }, 500);
-        }, { once: true });
-    }
-    
-    // Função para gerar PDF do registro
-    function gerarPDFRegistro(registroId) {
-        visualizarRegistro(registroId);
-        
-        // Adicionar listener para quando o modal estiver completamente visível
-        document.getElementById('viewModal').addEventListener('shown.bs.modal', function() {
-            setTimeout(() => {
-                const viewModalBody = document.getElementById('viewModalBody');
-                const { jsPDF } = window.jspdf;
-                
-                html2canvas(viewModalBody).then(canvas => {
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    const imgProps = pdf.getImageProperties(imgData);
-                    const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                    
-                    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                    pdf.save(`ficha_epi_${viewModalBody.dataset.colaboradorCpf}_${viewModalBody.dataset.dataEntrega}.pdf`);
-                });
-            }, 500);
-        }, { once: true });
-    }
-    
-    // Função para enviar email do registro
-    function enviarEmailRegistro(registroId) {
-        visualizarRegistro(registroId);
-        
-        // Adicionar listener para quando o modal estiver completamente visível
-        document.getElementById('viewModal').addEventListener('shown.bs.modal', function() {
-            setTimeout(() => {
-                // Fechar modal de visualização
-                viewModal.hide();
-                
-                // Mostrar modal de email
-                emailModal.show();
-                
-                // Configurar envio de email
-                sendEmailButton.onclick = function() {
-                    const email = emailDestinatarioInput.value;
-                    if (!email) {
-                        alert('Por favor, informe um email válido.');
-                        return;
-                    }
-                    
-                    // Salvar email se a opção estiver marcada
-                    if (salvarEmailCheckbox.checked) {
-                        localStorage.setItem('savedEmail', email);
-                    }
-                    
-                    const viewModalBody = document.getElementById('viewModalBody');
-                    const { jsPDF } = window.jspdf;
-                    
-                    html2canvas(viewModalBody).then(canvas => {
-                        const imgData = canvas.toDataURL('image/png');
-                        const pdf = new jsPDF('p', 'mm', 'a4');
-                        const imgProps = pdf.getImageProperties(imgData);
-                        const pdfWidth = pdf.internal.pageSize.getWidth();
-                        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                        
-                        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                        
-                        const pdfBlob = pdf.output('blob');
-                        const formData = new FormData();
-                        formData.append('email', email);
-                        formData.append('nome', viewModalBody.dataset.colaboradorNome);
-                        formData.append('data', viewModalBody.dataset.dataEntrega);
-                        formData.append('pdf', pdfBlob, `ficha_epi_${viewModalBody.dataset.colaboradorCpf}_${viewModalBody.dataset.dataEntrega}.pdf`);
-                        
-                        // Enviar email com o PDF anexado
-                        fetch(`${API_BASE_URL}/enviar-email`, {
-                            method: 'POST',
-                            body: formData
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Erro ao enviar email');
-                            }
-                            return response.json();
-                        })
-                        .then(() => {
-                            alert('Email enviado com sucesso!');
-                            emailModal.hide();
-                        })
-                        .catch(error => {
-                            console.error('Erro:', error);
-                            alert('Erro ao enviar o email. Por favor, tente novamente.');
-                        });
-                    });
-                };
-            }, 500);
-        }, { once: true });
-    }
-    
-    // Configurar botões de ação no modal de visualização
-    viewPrintButton.addEventListener('click', function() {
-        window.print();
-    });
-    
-    viewPdfButton.addEventListener('click', function() {
+    function visualizarRegistro(registro, colaborador, epi) {
         const viewModalBody = document.getElementById('viewModalBody');
-        const { jsPDF } = window.jspdf;
         
-        html2canvas(viewModalBody).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const imgProps = pdf.getImageProperties(imgData);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            pdf.save(`ficha_epi_${viewModalBody.dataset.colaboradorCpf}_${viewModalBody.dataset.dataEntrega}.pdf`);
-        });
-    });
-    
-    viewEmailButton.addEventListener('click', function() {
-        // Fechar modal de visualização
-        viewModal.hide();
+        // Formatar data
+        const dataEntrega = new Date(registro.data_entrega);
+        const dataFormatada = dataEntrega.toLocaleDateString('pt-BR');
         
-        // Mostrar modal de email
-        emailModal.show();
-    });
+        // Formatar data de admissão
+        const dataAdmissao = new Date(colaborador.data_admissao);
+        const dataAdmissaoFormatada = dataAdmissao.toLocaleDateString('pt-BR');
+        
+        // Criar conteúdo do modal
+        viewModalBody.innerHTML = `
+            <div class="registro-detalhes">
+                <h4 class="section-title">Dados do Colaborador</h4>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <p><strong>Nome:</strong> ${colaborador.nome_completo}</p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>CPF:</strong> ${colaborador.cpf}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Data de Admissão:</strong> ${dataAdmissaoFormatada}</p>
+                    </div>
+                </div>
+                
+                <h4 class="section-title">Dados do EPI</h4>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <p><strong>Nome do EPI:</strong> ${epi.nome}</p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>CA:</strong> ${epi.ca}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Data de Entrega:</strong> ${dataFormatada}</p>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <p><strong>Observações:</strong> ${registro.observacoes || 'Nenhuma observação'}</p>
+                    </div>
+                </div>
+                
+                <h4 class="section-title">Assinatura Digital</h4>
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <img src="${registro.assinatura_data}" alt="Assinatura" class="img-fluid border">
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Configurar botão de PDF
+        document.getElementById('viewPdfButton').onclick = function() {
+            html2canvas(viewModalBody).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF();
+                pdf.addImage(imgData, 'PNG', 10, 10);
+                pdf.save(`ficha_epi_${colaborador.cpf}_${registro.data_entrega}.pdf`);
+            });
+        };
+        
+        // Mostrar modal
+        viewModal.show();
+    }
 });

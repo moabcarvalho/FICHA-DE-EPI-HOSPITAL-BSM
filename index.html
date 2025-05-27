@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FICHA DE EPI HOSPITAL BOM SAMARITANO MARINGÁ</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -76,7 +76,7 @@
                             <h3 class="section-title">Assinatura Digital</h3>
                             <p>Assine no campo abaixo utilizando o dedo ou uma caneta touch:</p>
                             <div class="signature-container mb-3">
-                                <canvas id="signatureCanvas"></canvas>
+                                <canvas id="signatureCanvas" style="width:300px; height:150px; border:1px solid #000;"></canvas>
                                 <div class="mt-2">
                                     <button type="button" class="btn btn-secondary" id="clearSignature">Limpar Assinatura</button>
                                     <!-- O botão de caneta será adicionado automaticamente pelo JavaScript -->
@@ -86,9 +86,7 @@
                             <div class="d-flex justify-content-between">
                                 <button type="button" class="btn btn-primary" id="saveButton">Salvar Registro</button>
                                 <div class="btn-group">
-                                    <button type="button" class="btn btn-success" id="printButton">Imprimir</button>
                                     <button type="button" class="btn btn-info" id="pdfButton">Gerar PDF</button>
-                                    <button type="button" class="btn btn-warning" id="emailButton">Enviar por Email</button>
                                 </div>
                             </div>
                         </form>
@@ -135,34 +133,6 @@
         </div>
     </div>
     
-    <!-- Modal de Email -->
-    <div class="modal fade" id="emailModal" tabindex="-1" aria-labelledby="emailModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="emailModalLabel">Enviar por Email</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="emailDestinatario" class="form-label">Email do Destinatário</label>
-                        <input type="email" class="form-control" id="emailDestinatario" required>
-                    </div>
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="salvarEmail">
-                        <label class="form-check-label" for="salvarEmail">
-                            Salvar este email para uso futuro
-                        </label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="sendEmailButton">Enviar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     <!-- Modal de Visualização de Registro -->
     <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -176,9 +146,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                    <button type="button" class="btn btn-success" id="viewPrintButton">Imprimir</button>
                     <button type="button" class="btn btn-info" id="viewPdfButton">Gerar PDF</button>
-                    <button type="button" class="btn btn-warning" id="viewEmailButton">Enviar por Email</button>
                 </div>
             </div>
         </div>
