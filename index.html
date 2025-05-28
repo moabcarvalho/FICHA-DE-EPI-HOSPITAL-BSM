@@ -7,6 +7,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
     <div class="container mt-4">
@@ -30,66 +32,68 @@
                 <!-- Aba Nova Ficha -->
                 <div class="tab-pane fade show active" id="nova-ficha" role="tabpanel" aria-labelledby="nova-ficha-tab">
                     <div class="card-body">
-                        <form id="epiForm">
-                            <h3 class="section-title">Dados do Colaborador</h3>
-                            <div class="row mb-3">
-                                <div class="col-md-12">
-                                    <label for="nomeCompleto" class="form-label">Nome Completo</label>
-                                    <input type="text" class="form-control" id="nomeCompleto" required>
+                        <div id="areaImpressao">
+                            <form id="epiForm">
+                                <h3 class="section-title">Dados do Colaborador</h3>
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <label for="nomeCompleto" class="form-label">Nome Completo</label>
+                                        <input type="text" class="form-control" id="nomeCompleto" required>
+                                    </div>
                                 </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="cpf" class="form-label">CPF</label>
+                                        <input type="text" class="form-control" id="cpf" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="dataAdmissao" class="form-label">Data de Admissão</label>
+                                        <input type="date" class="form-control" id="dataAdmissao" required>
+                                    </div>
+                                </div>
+                                
+                                <h3 class="section-title">Dados do EPI</h3>
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <label for="nomeEPI" class="form-label">Nome do EPI</label>
+                                        <input type="text" class="form-control" id="nomeEPI" required>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="ca" class="form-label">CA (Certificado de Aprovação)</label>
+                                        <input type="text" class="form-control" id="ca" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="dataEntrega" class="form-label">Data de Entrega</label>
+                                        <input type="date" class="form-control" id="dataEntrega" required>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <label for="observacoes" class="form-label">Observações</label>
+                                        <textarea class="form-control" id="observacoes" rows="3"></textarea>
+                                    </div>
+                                </div>
+                                
+                                <h3 class="section-title">Assinatura Digital</h3>
+                                <p>Assine no campo abaixo utilizando o dedo ou uma caneta touch:</p>
+                                <div class="signature-container mb-3">
+                                    <canvas id="signatureCanvas" style="width:300px; height:150px; border:1px solid #000;"></canvas>
+                                    <div class="mt-2">
+                                        <button type="button" class="btn btn-secondary" id="clearSignature">Limpar Assinatura</button>
+                                        <!-- O botão de caneta será adicionado automaticamente pelo JavaScript -->
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-primary" id="saveButton">Salvar Registro</button>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-info" id="botaoPDF">Gerar PDF</button>
                             </div>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="cpf" class="form-label">CPF</label>
-                                    <input type="text" class="form-control" id="cpf" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="dataAdmissao" class="form-label">Data de Admissão</label>
-                                    <input type="date" class="form-control" id="dataAdmissao" required>
-                                </div>
-                            </div>
-                            
-                            <h3 class="section-title">Dados do EPI</h3>
-                            <div class="row mb-3">
-                                <div class="col-md-12">
-                                    <label for="nomeEPI" class="form-label">Nome do EPI</label>
-                                    <input type="text" class="form-control" id="nomeEPI" required>
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="ca" class="form-label">CA (Certificado de Aprovação)</label>
-                                    <input type="text" class="form-control" id="ca" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="dataEntrega" class="form-label">Data de Entrega</label>
-                                    <input type="date" class="form-control" id="dataEntrega" required>
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-md-12">
-                                    <label for="observacoes" class="form-label">Observações</label>
-                                    <textarea class="form-control" id="observacoes" rows="3"></textarea>
-                                </div>
-                            </div>
-                            
-                            <h3 class="section-title">Assinatura Digital</h3>
-                            <p>Assine no campo abaixo utilizando o dedo ou uma caneta touch:</p>
-                            <div class="signature-container mb-3">
-                                <canvas id="signatureCanvas" style="width:300px; height:150px; border:1px solid #000;"></canvas>
-                                <div class="mt-2">
-                                    <button type="button" class="btn btn-secondary" id="clearSignature">Limpar Assinatura</button>
-                                    <!-- O botão de caneta será adicionado automaticamente pelo JavaScript -->
-                                </div>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between">
-                                <button type="button" class="btn btn-primary" id="saveButton">Salvar Registro</button>
-                                <div class="btn-group">
-                                    <button type="button" class="btn btn-info" id="pdfButton">Gerar PDF</button>
-                                </div>
-                            </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
                 
@@ -153,8 +157,6 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
     <script src="js/signature.js"></script>
     <script src="js/main.js"></script>
 </body>

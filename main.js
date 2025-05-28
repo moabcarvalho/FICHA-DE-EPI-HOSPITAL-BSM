@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Botões de ação
     const saveButton = document.getElementById('saveButton');
-    const pdfButton = document.getElementById('pdfButton');
+    const pdfButton = document.getElementById('botaoPDF');
     
     // Elementos de busca
     const searchInput = document.getElementById('searchInput');
@@ -241,19 +241,23 @@ document.addEventListener('DOMContentLoaded', function() {
         return true;
     }
     
-    // Gerar PDF
+    // Gerar PDF - Implementação corrigida conforme solicitado pelo usuário
     pdfButton.addEventListener('click', function() {
         if (!validarFormulario()) {
             alert('Por favor, preencha todos os campos obrigatórios e assine o documento antes de gerar o PDF.');
             return;
         }
         
-        html2canvas(document.querySelector('.signature-container')).then(canvas => {
+        const area = document.getElementById('areaImpressao');
+        
+        html2canvas(area).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF();
-            pdf.addImage(imgData, 'PNG', 10, 10);
-            pdf.save('assinatura.pdf');
+            const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.save('Ficha_de_Entrega_EPI.pdf');
         });
     });
     
@@ -432,8 +436,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('viewPdfButton').onclick = function() {
             html2canvas(viewModalBody).then(canvas => {
                 const imgData = canvas.toDataURL('image/png');
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF();
+                const pdf = new jspdf.jsPDF();
                 pdf.addImage(imgData, 'PNG', 10, 10);
                 pdf.save(`ficha_epi_${colaborador.cpf}_${registro.data_entrega}.pdf`);
             });
