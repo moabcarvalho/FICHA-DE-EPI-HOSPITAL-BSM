@@ -44,7 +44,13 @@ def save_data(file_path, data):
 # Rotas para Colaboradores
 @app.route('/api/colaboradores', methods=['GET'])
 def get_colaboradores():
+    nome_busca = request.args.get('nome', '')
     colaboradores = load_data(COLABORADORES_FILE)
+    
+    if nome_busca:
+        # Busca case-insensitive por nome parcial
+        colaboradores = [c for c in colaboradores if nome_busca.lower() in c['nome_completo'].lower()]
+    
     return jsonify(colaboradores)
 
 @app.route('/api/colaboradores/<int:id>', methods=['GET'])

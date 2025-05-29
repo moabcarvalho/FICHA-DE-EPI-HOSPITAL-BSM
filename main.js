@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const caInput = document.getElementById('ca');
     const observacoesInput = document.getElementById('observacoes');
     const dataEntregaInput = document.getElementById('dataEntrega');
+    const autocompleteResults = document.getElementById('autocompleteResults');
     
     // Botões de ação
     const saveButton = document.getElementById('saveButton');
@@ -71,6 +72,82 @@ document.addEventListener('DOMContentLoaded', function() {
             buscarColaboradorPorCPF(cpf);
         }
     });
+    
+    // Implementação do autocomplete para o campo de nome
+    let timeoutId = null;
+    nomeCompletoInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        
+        // Limpar timeout anterior para evitar múltiplas requisições
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        
+        // Esconder resultados se o campo estiver vazio
+        if (query.length < 3) {
+            autocompleteResults.style.display = 'none';
+            return;
+        }
+        
+        // Definir um timeout para evitar requisições a cada tecla
+        timeoutId = setTimeout(() => {
+            fetch(`${API_BASE_URL}/colaboradores?nome=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Limpar resultados anteriores
+                    autocompleteResults.innerHTML = '';
+                    
+                    if (data.length > 0) {
+                        // Mostrar resultados
+                        autocompleteResults.style.display = 'block';
+                        
+                        // Adicionar cada colaborador à lista de sugestões
+                        data.forEach(colaborador => {
+                            const item = document.createElement('div');
+                            item.textContent = colaborador.nome_completo;
+                            item.dataset.id = colaborador.id;
+                            item.dataset.cpf = colaborador.cpf;
+                            item.dataset.dataAdmissao = colaborador.data_admissao;
+                            
+                            // Adicionar evento de clique para selecionar o colaborador
+                            item.addEventListener('click', function() {
+                                // Preencher os campos com os dados do colaborador
+                                nomeCompletoInput.value = colaborador.nome_completo;
+                                cpfInput.value = formatarCPF(colaborador.cpf);
+                                dataAdmissaoInput.value = colaborador.data_admissao;
+                                
+                                // Esconder resultados
+                                autocompleteResults.style.display = 'none';
+                            });
+                            
+                            autocompleteResults.appendChild(item);
+                        });
+                    } else {
+                        autocompleteResults.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar sugestões:', error);
+                    autocompleteResults.style.display = 'none';
+                });
+        }, 300); // 300ms de delay para evitar muitas requisições
+    });
+    
+    // Esconder resultados quando clicar fora do campo
+    document.addEventListener('click', function(e) {
+        if (e.target !== nomeCompletoInput && e.target !== autocompleteResults) {
+            autocompleteResults.style.display = 'none';
+        }
+    });
+    
+    // Função para formatar CPF
+    function formatarCPF(cpf) {
+        cpf = cpf.replace(/\D/g, '');
+        if (cpf.length === 11) {
+            return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+        }
+        return cpf;
+    }
     
     // Função para buscar colaborador por CPF
     function buscarColaboradorPorCPF(cpf) {
