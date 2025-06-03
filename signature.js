@@ -1,45 +1,58 @@
 /**
- * Módulo para captura de assinatura digital
- * Implementa funcionalidade de desenho em canvas com suporte a toque e modo caneta
+ * Classe para captura de assinatura digital
+ * Gerencia o canvas de assinatura, eventos de mouse/touch e ferramentas
  */
 class SignatureCapture {
-    constructor(canvasId, clearButtonId) {
+    /**
+     * Inicializa o componente de assinatura
+     * @param {string} canvasId - ID do elemento canvas
+     * @param {string} clearButtonId - ID do botão para limpar assinatura
+     * @param {string} penButtonId - ID do botão de caneta azul
+     */
+    constructor(canvasId, clearButtonId, penButtonId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.clearButton = document.getElementById(clearButtonId);
+        this.penButton = document.getElementById(penButtonId);
+        
         this.isDrawing = false;
         this.lastX = 0;
         this.lastY = 0;
-        this.penMode = false; // Novo: controle do modo caneta
         
-        // Configuração inicial do canvas
-        this.setupCanvas();
-        
-        // Configuração dos eventos de mouse e toque
-        this.setupEvents();
-        
-        // Configuração do botão de limpar
-        this.setupClearButton();
-        
-        // Configuração do botão de caneta
-        this.setupPenButton();
-    }
-    
-    setupCanvas() {
-        // Ajustar o tamanho do canvas para corresponder ao tamanho exibido
-        this.canvas.width = this.canvas.offsetWidth;
-        this.canvas.height = this.canvas.offsetHeight;
-        
-        // Configurar estilo de linha
-        this.ctx.lineJoin = 'round';
+        // Configuração inicial do traço
+        this.ctx.lineWidth = 2;
         this.ctx.lineCap = 'round';
-        this.ctx.lineWidth = 3;
-        this.ctx.strokeStyle = '#000'; // Cor padrão inicial
+        this.ctx.lineJoin = 'round';
+        this.ctx.strokeStyle = '#000'; // Cor padrão: preto
         
-        // Limpar o canvas
+        // Inicializar o canvas e eventos
+        this.resizeCanvas();
+        this.setupEvents();
+        this.setupPenButton();
         this.clearCanvas();
     }
     
+    /**
+     * Redimensiona o canvas para o tamanho do container
+     */
+    resizeCanvas() {
+        // Obter o tamanho do container pai
+        const container = this.canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        
+        // Definir o tamanho do canvas
+        this.canvas.width = rect.width - 20; // Margem para evitar overflow
+        this.canvas.height = 200; // Altura fixa
+        
+        // Reconfigurar o contexto após redimensionamento
+        this.ctx.lineWidth = 2;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+    }
+    
+    /**
+     * Configura os eventos de mouse e touch
+     */
     setupEvents() {
         // Eventos de mouse
         this.canvas.addEventListener('mousedown', this.startDrawing.bind(this));
@@ -47,147 +60,140 @@ class SignatureCapture {
         this.canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
         this.canvas.addEventListener('mouseout', this.stopDrawing.bind(this));
         
-        // Eventos de toque
+        // Eventos de touch para dispositivos móveis
         this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
         this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: false });
         this.canvas.addEventListener('touchend', this.stopDrawing.bind(this), { passive: false });
-    }
-    
-    setupClearButton() {
+        
+        // Evento para limpar o canvas
         if (this.clearButton) {
             this.clearButton.addEventListener('click', this.clearCanvas.bind(this));
         }
     }
     
+    /**
+     * Configura o botão de caneta azul
+     */
     setupPenButton() {
-        // Criar botão de caneta
-        const penButton = document.createElement('button');
-        penButton.type = 'button';
-        penButton.id = 'penButton';
-        penButton.className = 'btn btn-outline-primary ms-2';
-        penButton.innerHTML = '<i class="bi bi-pen"></i>'; // Ícone de caneta do Bootstrap Icons
-        penButton.title = 'Modo Caneta';
-        
-        // Adicionar o botão após o botão de limpar
-        if (this.clearButton) {
-            this.clearButton.insertAdjacentElement('afterend', penButton);
-        }
-        
-        // Adicionar evento de clique
-        penButton.addEventListener('click', this.togglePenMode.bind(this));
-        
-        // Salvar referência ao botão
-        this.penButton = penButton;
-    }
-    
-    togglePenMode() {
-        this.penMode = !this.penMode;
-        
-        if (this.penMode) {
-            // Ativar modo caneta (azul escuro tipo BIC)
-            this.ctx.strokeStyle = '#0047AB'; // Azul escuro semelhante à caneta BIC
-            this.penButton.classList.remove('btn-outline-primary');
-            this.penButton.classList.add('btn-primary');
-        } else {
-            // Voltar para o modo normal (preto)
-            this.ctx.strokeStyle = '#000';
-            this.penButton.classList.remove('btn-primary');
-            this.penButton.classList.add('btn-outline-primary');
+        if (this.penButton) {
+            this.penButton.addEventListener('click', () => {
+                // Alternar entre preto e azul escuro (estilo caneta BIC)
+                if (this.ctx.strokeStyle === '#000000' || this.ctx.strokeStyle === '#000') {
+                    this.ctx.strokeStyle = '#0047AB'; // Azul escuro estilo caneta BIC
+                    this.penButton.classList.add('active');
+                } else {
+                    this.ctx.strokeStyle = '#000'; // Voltar para preto
+                    this.penButton.classList.remove('active');
+                }
+            });
         }
     }
     
+    /**
+     * Inicia o desenho quando o mouse é pressionado
+     * @param {Event} e - Evento de mouse
+     */
     startDrawing(e) {
         this.isDrawing = true;
-        [this.lastX, this.lastY] = [e.offsetX, e.offsetY];
+        const { x, y } = this.getCoordinates(e);
+        this.lastX = x;
+        this.lastY = y;
     }
     
+    /**
+     * Desenha no canvas quando o mouse é movido
+     * @param {Event} e - Evento de mouse
+     */
     draw(e) {
         if (!this.isDrawing) return;
         
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.lastX, this.lastY);
-        this.ctx.lineTo(e.offsetX, e.offsetY);
-        this.ctx.stroke();
-        
-        [this.lastX, this.lastY] = [e.offsetX, e.offsetY];
-    }
-    
-    handleTouchStart(e) {
-        e.preventDefault();
-        if (e.touches.length === 1) {
-            const touch = e.touches[0];
-            const rect = this.canvas.getBoundingClientRect();
-            const offsetX = touch.clientX - rect.left;
-            const offsetY = touch.clientY - rect.top;
-            
-            this.isDrawing = true;
-            [this.lastX, this.lastY] = [offsetX, offsetY];
-        }
-    }
-    
-    handleTouchMove(e) {
-        e.preventDefault();
-        if (!this.isDrawing || e.touches.length !== 1) return;
-        
-        const touch = e.touches[0];
-        const rect = this.canvas.getBoundingClientRect();
-        const offsetX = touch.clientX - rect.left;
-        const offsetY = touch.clientY - rect.top;
+        const { x, y } = this.getCoordinates(e);
         
         this.ctx.beginPath();
         this.ctx.moveTo(this.lastX, this.lastY);
-        this.ctx.lineTo(offsetX, offsetY);
+        this.ctx.lineTo(x, y);
         this.ctx.stroke();
         
-        [this.lastX, this.lastY] = [offsetX, offsetY];
+        this.lastX = x;
+        this.lastY = y;
     }
     
+    /**
+     * Para o desenho quando o mouse é solto
+     */
     stopDrawing() {
         this.isDrawing = false;
     }
     
+    /**
+     * Manipula o evento de toque inicial
+     * @param {TouchEvent} e - Evento de toque
+     */
+    handleTouchStart(e) {
+        e.preventDefault();
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousedown', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            this.canvas.dispatchEvent(mouseEvent);
+        }
+    }
+    
+    /**
+     * Manipula o evento de movimento de toque
+     * @param {TouchEvent} e - Evento de toque
+     */
+    handleTouchMove(e) {
+        e.preventDefault();
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent('mousemove', {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            this.canvas.dispatchEvent(mouseEvent);
+        }
+    }
+    
+    /**
+     * Obtém as coordenadas do mouse ou toque relativas ao canvas
+     * @param {Event} e - Evento de mouse ou toque
+     * @returns {Object} Coordenadas x e y
+     */
+    getCoordinates(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }
+    
+    /**
+     * Limpa o canvas
+     */
     clearCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.fillStyle = '#fff';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
     
+    /**
+     * Verifica se o canvas está vazio
+     * @returns {boolean} Verdadeiro se o canvas estiver vazio
+     */
+    isEmpty() {
+        const pixelData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height).data;
+        for (let i = 3; i < pixelData.length; i += 4) {
+            if (pixelData[i] > 0) return false;
+        }
+        return true;
+    }
+    
+    /**
+     * Obtém os dados da assinatura como URL de dados
+     * @returns {string} URL de dados da imagem
+     */
     getSignatureData() {
         return this.canvas.toDataURL('image/png');
-    }
-    
-    isEmpty() {
-        const pixelBuffer = new Uint32Array(
-            this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height).data.buffer
-        );
-        
-        // Verificar se há pixels não brancos (assinatura)
-        return !pixelBuffer.some(color => color !== 0xffffffff);
-    }
-    
-    // Redimensionar o canvas quando a janela for redimensionada
-    resizeCanvas() {
-        const currentData = this.canvas.toDataURL();
-        this.canvas.width = this.canvas.offsetWidth;
-        this.canvas.height = this.canvas.offsetHeight;
-        
-        // Restaurar configurações de desenho
-        this.ctx.lineJoin = 'round';
-        this.ctx.lineCap = 'round';
-        this.ctx.lineWidth = 3;
-        
-        // Manter a cor atual baseada no modo
-        if (this.penMode) {
-            this.ctx.strokeStyle = '#0047AB'; // Azul escuro
-        } else {
-            this.ctx.strokeStyle = '#000'; // Preto
-        }
-        
-        // Restaurar a assinatura
-        const img = new Image();
-        img.onload = () => {
-            this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
-        };
-        img.src = currentData;
     }
 }

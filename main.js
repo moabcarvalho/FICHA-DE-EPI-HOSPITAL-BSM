@@ -1,13 +1,13 @@
 /**
  * Script principal para o site de Ficha de EPI
- * Gerencia a integração com o backend, preenchimento automático e exportação
+ * Gerencia a integração com o backend, validação de formulário e geração de PDF
  */
 document.addEventListener('DOMContentLoaded', function() {
-    // URL base da API - alterar para a URL da API quando implantada
-    const API_BASE_URL = 'https://api-epi-hospital.vercel.app/api';
+    // URL base da API - usando a rota local do Flask
+    const API_BASE_URL = '/api';
     
     // Inicializar o componente de assinatura
-    const signatureCapture = new SignatureCapture('signatureCanvas', 'clearSignature');
+    const signatureCapture = new SignatureCapture('signatureCanvas', 'clearSignature', 'penButton');
     
     // Ajustar o canvas quando a janela for redimensionada
     window.addEventListener('resize', function() {
@@ -22,11 +22,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const caInput = document.getElementById('ca');
     const observacoesInput = document.getElementById('observacoes');
     const dataEntregaInput = document.getElementById('dataEntrega');
-    const autocompleteResults = document.getElementById('autocompleteResults');
     
     // Botões de ação
     const saveButton = document.getElementById('saveButton');
-    const pdfButton = document.getElementById('botaoPDF');
+    const pdfButton = document.getElementById('pdfButton');
+    
+    // Elementos de alerta
+    const successAlert = document.getElementById('successAlert');
+    const errorAlert = document.getElementById('errorAlert');
     
     // Elementos de busca
     const searchInput = document.getElementById('searchInput');
@@ -35,12 +38,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const resultsBody = document.getElementById('resultsBody');
     const resultTitle = document.getElementById('resultTitle');
     const noResults = document.getElementById('noResults');
-    
-    // Botões de visualização
-    const viewPdfButton = document.getElementById('viewPdfButton');
-    
-    // Modais
-    const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
     
     // Configurar data de entrega com a data atual
     const today = new Date();
@@ -65,275 +62,80 @@ document.addEventListener('DOMContentLoaded', function() {
         e.target.value = value;
     });
     
-    // Buscar colaborador por CPF quando o campo perder o foco
-    cpfInput.addEventListener('blur', function() {
-        const cpf = cpfInput.value.replace(/\D/g, '');
-        if (cpf.length === 11) {
-            buscarColaboradorPorCPF(cpf);
-        }
-    });
-    
-    // Implementação do autocomplete para o campo de nome
-    let timeoutId = null;
-    nomeCompletoInput.addEventListener('input', function() {
-        const query = this.value.trim();
-        
-        // Limpar timeout anterior para evitar múltiplas requisições
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-        }
-        
-        // Esconder resultados se o campo estiver vazio
-        if (query.length < 3) {
-            autocompleteResults.style.display = 'none';
-            return;
-        }
-        
-        // Definir um timeout para evitar requisições a cada tecla
-        timeoutId = setTimeout(() => {
-            fetch(`${API_BASE_URL}/colaboradores?nome=${encodeURIComponent(query)}`)
-                .then(response => response.json())
-                .then(data => {
-                    // Limpar resultados anteriores
-                    autocompleteResults.innerHTML = '';
-                    
-                    if (data.length > 0) {
-                        // Mostrar resultados
-                        autocompleteResults.style.display = 'block';
-                        
-                        // Adicionar cada colaborador à lista de sugestões
-                        data.forEach(colaborador => {
-                            const item = document.createElement('div');
-                            item.textContent = colaborador.nome_completo;
-                            item.dataset.id = colaborador.id;
-                            item.dataset.cpf = colaborador.cpf;
-                            item.dataset.dataAdmissao = colaborador.data_admissao;
-                            
-                            // Adicionar evento de clique para selecionar o colaborador
-                            item.addEventListener('click', function() {
-                                // Preencher os campos com os dados do colaborador
-                                nomeCompletoInput.value = colaborador.nome_completo;
-                                cpfInput.value = formatarCPF(colaborador.cpf);
-                                dataAdmissaoInput.value = colaborador.data_admissao;
-                                
-                                // Esconder resultados
-                                autocompleteResults.style.display = 'none';
-                            });
-                            
-                            autocompleteResults.appendChild(item);
-                        });
-                    } else {
-                        autocompleteResults.style.display = 'none';
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro ao buscar sugestões:', error);
-                    autocompleteResults.style.display = 'none';
-                });
-        }, 300); // 300ms de delay para evitar muitas requisições
-    });
-    
-    // Esconder resultados quando clicar fora do campo
-    document.addEventListener('click', function(e) {
-        if (e.target !== nomeCompletoInput && e.target !== autocompleteResults) {
-            autocompleteResults.style.display = 'none';
-        }
-    });
-    
-    // Função para formatar CPF
-    function formatarCPF(cpf) {
-        cpf = cpf.replace(/\D/g, '');
-        if (cpf.length === 11) {
-            return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
-        }
-        return cpf;
-    }
-    
-    // Função para buscar colaborador por CPF
-    function buscarColaboradorPorCPF(cpf) {
-        fetch(`${API_BASE_URL}/colaboradores/buscar-por-cpf/${cpf}`)
-            .then(response => {
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        console.log('Colaborador não encontrado, novo cadastro será realizado.');
-                        return null;
-                    }
-                    throw new Error('Erro ao buscar colaborador');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data) {
-                    // Preencher os campos com os dados do colaborador
-                    nomeCompletoInput.value = data.nome_completo;
-                    dataAdmissaoInput.value = data.data_admissao;
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-            });
-    }
-    
     // Salvar registro
     saveButton.addEventListener('click', function() {
         if (!validarFormulario()) {
-            alert('Por favor, preencha todos os campos obrigatórios e assine o documento.');
+            mostrarErro('Por favor, preencha todos os campos obrigatórios e assine o documento.');
             return;
         }
         
-        // Verificar se o colaborador já existe
-        const cpf = cpfInput.value.replace(/\D/g, '');
+        // Preparar dados para envio
+        const formData = {
+            colaborador: {
+                nome_completo: nomeCompletoInput.value,
+                cpf: cpfInput.value.replace(/\D/g, ''),
+                data_admissao: dataAdmissaoInput.value
+            },
+            epi: {
+                nome: nomeEPIInput.value,
+                ca: caInput.value,
+                observacoes: observacoesInput.value || ''
+            },
+            registro: {
+                data_entrega: dataEntregaInput.value,
+                assinatura_data: signatureCapture.getSignatureData()
+            }
+        };
         
-        fetch(`${API_BASE_URL}/colaboradores/buscar-por-cpf/${cpf}`)
-            .then(response => {
-                if (response.status === 404) {
-                    // Colaborador não existe, criar novo
-                    return criarColaborador();
-                } else if (response.ok) {
-                    // Colaborador existe, obter ID
-                    return response.json().then(data => data.id);
-                } else {
-                    throw new Error('Erro ao verificar colaborador');
-                }
-            })
-            .then(colaboradorId => {
-                // Verificar se o EPI já existe pelo CA
-                return verificarOuCriarEPI().then(epiId => {
-                    return { colaboradorId, epiId };
-                });
-            })
-            .then(ids => {
-                // Criar registro de entrega
-                return criarRegistroEPI(ids.colaboradorId, ids.epiId);
-            })
-            .then(() => {
-                alert('Registro salvo com sucesso!');
-                // Limpar apenas os campos de EPI e assinatura, mantendo dados do colaborador
-                nomeEPIInput.value = '';
-                caInput.value = '';
-                observacoesInput.value = '';
-                signatureCapture.clearCanvas();
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro ao salvar o registro. Por favor, tente novamente.');
-            });
+        // Enviar dados para o backend
+        fetch(`${API_BASE_URL}/registros`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erro ao salvar o registro');
+            }
+            return response.json();
+        })
+        .then(data => {
+            mostrarSucesso('Registro salvo com sucesso!');
+            // Limpar apenas os campos de EPI e assinatura, mantendo dados do colaborador
+            nomeEPIInput.value = '';
+            caInput.value = '';
+            observacoesInput.value = '';
+            signatureCapture.clearCanvas();
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            mostrarErro('Erro ao salvar o registro. Por favor, tente novamente.');
+        });
     });
     
-    // Função para criar colaborador
-    function criarColaborador() {
-        const colaboradorData = {
-            nome_completo: nomeCompletoInput.value,
-            cpf: cpfInput.value.replace(/\D/g, ''),
-            data_admissao: dataAdmissaoInput.value
-        };
-        
-        return fetch(`${API_BASE_URL}/colaboradores`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(colaboradorData)
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Erro ao criar colaborador');
-            }
-            return response.json();
-        })
-        .then(data => data.id);
-    }
-    
-    // Função para verificar se o EPI existe ou criar um novo
-    function verificarOuCriarEPI() {
-        return fetch(`${API_BASE_URL}/epis/buscar-por-ca/${caInput.value}`)
-            .then(response => {
-                if (response.status === 404) {
-                    // EPI não existe, criar novo
-                    const epiData = {
-                        nome: nomeEPIInput.value,
-                        ca: caInput.value,
-                        descricao: observacoesInput.value || ''
-                    };
-                    
-                    return fetch(`${API_BASE_URL}/epis`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(epiData)
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Erro ao criar EPI');
-                        }
-                        return response.json();
-                    })
-                    .then(data => data.id);
-                } else if (response.ok) {
-                    // EPI existe, obter ID
-                    return response.json().then(data => data.id);
-                } else {
-                    throw new Error('Erro ao verificar EPI');
-                }
-            });
-    }
-    
-    // Função para criar registro de entrega de EPI
-    function criarRegistroEPI(colaboradorId, epiId) {
-        const registroData = {
-            colaborador_id: colaboradorId,
-            epi_id: epiId,
-            data_entrega: dataEntregaInput.value,
-            assinatura_data: signatureCapture.getSignatureData(),
-            observacoes: observacoesInput.value || ''
-        };
-        
-        return fetch(`${API_BASE_URL}/registros`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(registroData)
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Erro ao criar registro de EPI');
-            }
-            return response.json();
-        });
-    }
-    
-    // Validar formulário
-    function validarFormulario() {
-        if (!nomeCompletoInput.value || 
-            !cpfInput.value || 
-            !dataAdmissaoInput.value || 
-            !nomeEPIInput.value || 
-            !caInput.value || 
-            !dataEntregaInput.value || 
-            signatureCapture.isEmpty()) {
-            return false;
-        }
-        return true;
-    }
-    
-    // Gerar PDF - Implementação corrigida conforme solicitado pelo usuário
+    // Gerar PDF
     pdfButton.addEventListener('click', function() {
         if (!validarFormulario()) {
-            alert('Por favor, preencha todos os campos obrigatórios e assine o documento antes de gerar o PDF.');
+            mostrarErro('Por favor, preencha todos os campos obrigatórios e assine o documento antes de gerar o PDF.');
             return;
         }
         
         const area = document.getElementById('areaImpressao');
         
+        // Usar html2canvas para capturar a área do formulário
         html2canvas(area).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
             const imgProps = pdf.getImageProperties(imgData);
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            // Adicionar a imagem ao PDF
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            
+            // Salvar o PDF
             pdf.save('Ficha_de_Entrega_EPI.pdf');
         });
     });
@@ -342,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
     searchButton.addEventListener('click', function() {
         const searchTerm = searchInput.value.trim();
         if (!searchTerm) {
-            alert('Por favor, informe um nome ou CPF para buscar.');
+            mostrarErro('Por favor, informe um nome ou CPF para buscar.');
             return;
         }
         
@@ -357,86 +159,73 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (isCPF) {
             const cpf = searchTerm.replace(/\D/g, '');
-            searchUrl = `${API_BASE_URL}/colaboradores/buscar-por-cpf/${cpf}`;
+            searchUrl = `${API_BASE_URL}/colaboradores/${cpf}`;
         } else {
-            // Implementar busca por nome (simulação)
             searchUrl = `${API_BASE_URL}/colaboradores?nome=${encodeURIComponent(searchTerm)}`;
         }
         
         fetch(searchUrl)
             .then(response => {
                 if (!response.ok) {
-                    if (response.status === 404) {
-                        throw new Error('Colaborador não encontrado');
-                    }
-                    throw new Error('Erro ao buscar colaborador');
+                    throw new Error('Colaborador não encontrado');
                 }
                 return response.json();
             })
-            .then(colaborador => {
-                // Se for uma lista, pegar o primeiro (simulação de busca por nome)
-                if (Array.isArray(colaborador)) {
-                    if (colaborador.length === 0) {
-                        throw new Error('Colaborador não encontrado');
-                    }
-                    colaborador = colaborador[0];
-                }
-                
-                // Buscar registros do colaborador
-                return fetch(`${API_BASE_URL}/registros/colaborador/${colaborador.id}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Erro ao buscar registros');
-                        }
-                        return response.json();
-                    })
-                    .then(registros => {
-                        return { colaborador, registros };
-                    });
-            })
             .then(data => {
-                if (data.registros.length === 0) {
+                // Verificar se é um array ou objeto único
+                const colaboradores = Array.isArray(data) ? data : [data];
+                
+                if (colaboradores.length === 0) {
                     noResults.classList.remove('d-none');
                     return;
                 }
                 
                 resultTitle.classList.remove('d-none');
                 
-                // Preencher tabela com os registros
-                data.registros.forEach(registro => {
-                    // Buscar detalhes do EPI
-                    fetch(`${API_BASE_URL}/epis/${registro.epi_id}`)
+                // Para cada colaborador, buscar seus registros
+                colaboradores.forEach(colaborador => {
+                    fetch(`${API_BASE_URL}/registros/colaborador/${colaborador.id}`)
                         .then(response => {
                             if (!response.ok) {
-                                throw new Error('Erro ao buscar EPI');
+                                throw new Error('Erro ao buscar registros');
                             }
                             return response.json();
                         })
-                        .then(epi => {
-                            const row = document.createElement('tr');
+                        .then(registros => {
+                            if (registros.length === 0) {
+                                if (colaboradores.length === 1) {
+                                    noResults.classList.remove('d-none');
+                                }
+                                return;
+                            }
                             
-                            // Formatar data
-                            const dataEntrega = new Date(registro.data_entrega);
-                            const dataFormatada = dataEntrega.toLocaleDateString('pt-BR');
-                            
-                            row.innerHTML = `
-                                <td>${dataFormatada}</td>
-                                <td>${data.colaborador.nome_completo}</td>
-                                <td>${epi.nome}</td>
-                                <td>${epi.ca}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary view-btn" data-registro-id="${registro.id}">
-                                        <i class="bi bi-eye"></i> Ver
-                                    </button>
-                                </td>
-                            `;
-                            
-                            // Adicionar evento para visualizar registro
-                            row.querySelector('.view-btn').addEventListener('click', function() {
-                                visualizarRegistro(registro, data.colaborador, epi);
+                            // Preencher tabela com os registros
+                            registros.forEach(registro => {
+                                const row = document.createElement('tr');
+                                
+                                // Formatar data
+                                const dataEntrega = new Date(registro.data_entrega);
+                                const dataFormatada = dataEntrega.toLocaleDateString('pt-BR');
+                                
+                                row.innerHTML = `
+                                    <td>${dataFormatada}</td>
+                                    <td>${colaborador.nome_completo}</td>
+                                    <td>${registro.epi.nome}</td>
+                                    <td>${registro.epi.ca}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary view-btn" data-registro-id="${registro.id}">
+                                            <i class="bi bi-eye"></i> Ver
+                                        </button>
+                                    </td>
+                                `;
+                                
+                                // Adicionar evento para visualizar registro
+                                row.querySelector('.view-btn').addEventListener('click', function() {
+                                    visualizarRegistro(registro, colaborador);
+                                });
+                                
+                                resultsBody.appendChild(row);
                             });
-                            
-                            resultsBody.appendChild(row);
                         })
                         .catch(error => {
                             console.error('Erro:', error);
@@ -451,8 +240,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Função para visualizar registro
-    function visualizarRegistro(registro, colaborador, epi) {
+    function visualizarRegistro(registro, colaborador) {
         const viewModalBody = document.getElementById('viewModalBody');
+        const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
         
         // Formatar data
         const dataEntrega = new Date(registro.data_entrega);
@@ -473,7 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <p><strong>CPF:</strong> ${colaborador.cpf}</p>
+                        <p><strong>CPF:</strong> ${formatarCPF(colaborador.cpf)}</p>
                     </div>
                     <div class="col-md-6">
                         <p><strong>Data de Admissão:</strong> ${dataAdmissaoFormatada}</p>
@@ -483,12 +273,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 <h4 class="section-title">Dados do EPI</h4>
                 <div class="row mb-3">
                     <div class="col-md-12">
-                        <p><strong>Nome do EPI:</strong> ${epi.nome}</p>
+                        <p><strong>Nome do EPI:</strong> ${registro.epi.nome}</p>
                     </div>
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <p><strong>CA:</strong> ${epi.ca}</p>
+                        <p><strong>CA:</strong> ${registro.epi.ca}</p>
                     </div>
                     <div class="col-md-6">
                         <p><strong>Data de Entrega:</strong> ${dataFormatada}</p>
@@ -496,30 +286,79 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="row mb-3">
                     <div class="col-md-12">
-                        <p><strong>Observações:</strong> ${registro.observacoes || 'Nenhuma observação'}</p>
+                        <p><strong>Observações:</strong> ${registro.epi.observacoes || 'Nenhuma observação'}</p>
                     </div>
                 </div>
                 
                 <h4 class="section-title">Assinatura Digital</h4>
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <img src="${registro.assinatura_data}" alt="Assinatura" class="img-fluid border">
-                    </div>
+                <div class="text-center mb-3">
+                    <img src="${registro.assinatura_data}" alt="Assinatura" class="img-fluid border">
                 </div>
             </div>
         `;
         
-        // Configurar botão de PDF
-        document.getElementById('viewPdfButton').onclick = function() {
+        // Configurar botão de PDF no modal
+        const viewPdfButton = document.getElementById('viewPdfButton');
+        viewPdfButton.onclick = function() {
             html2canvas(viewModalBody).then(canvas => {
                 const imgData = canvas.toDataURL('image/png');
-                const pdf = new jspdf.jsPDF();
-                pdf.addImage(imgData, 'PNG', 10, 10);
-                pdf.save(`ficha_epi_${colaborador.cpf}_${registro.data_entrega}.pdf`);
+                const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+                const imgProps = pdf.getImageProperties(imgData);
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`Ficha_EPI_${colaborador.nome_completo.replace(/\s+/g, '_')}.pdf`);
             });
         };
         
-        // Mostrar modal
+        // Mostrar o modal
         viewModal.show();
+    }
+    
+    // Função para formatar CPF
+    function formatarCPF(cpf) {
+        cpf = cpf.replace(/\D/g, '');
+        if (cpf.length === 11) {
+            return cpf.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4');
+        }
+        return cpf;
+    }
+    
+    // Validar formulário
+    function validarFormulario() {
+        if (!nomeCompletoInput.value || 
+            !cpfInput.value || 
+            !dataAdmissaoInput.value || 
+            !nomeEPIInput.value || 
+            !caInput.value || 
+            !dataEntregaInput.value || 
+            signatureCapture.isEmpty()) {
+            return false;
+        }
+        return true;
+    }
+    
+    // Mostrar mensagem de sucesso
+    function mostrarSucesso(mensagem) {
+        successAlert.textContent = mensagem;
+        successAlert.classList.remove('d-none');
+        errorAlert.classList.add('d-none');
+        
+        // Esconder após 5 segundos
+        setTimeout(() => {
+            successAlert.classList.add('d-none');
+        }, 5000);
+    }
+    
+    // Mostrar mensagem de erro
+    function mostrarErro(mensagem) {
+        errorAlert.textContent = mensagem;
+        errorAlert.classList.remove('d-none');
+        successAlert.classList.add('d-none');
+        
+        // Esconder após 5 segundos
+        setTimeout(() => {
+            errorAlert.classList.add('d-none');
+        }, 5000);
     }
 });
